@@ -91,7 +91,7 @@ DECL_COMMAND(command_config_mpu9250, "config_mpu9250 oid=%c i2c_oid=%c");
 static void
 mp9250_report(struct mpu9250 *mp, uint8_t oid)
 {
-    output ("reporting: [%*s]", mp->data);
+    output ("reporting: [%*s]", mp->data_count, mp->data);
     sendf("mpu9250_data oid=%c sequence=%hu data=%*s"
           , oid, mp->sequence, mp->data_count, mp->data);
     output ("reported.");
