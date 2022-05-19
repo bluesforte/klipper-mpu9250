@@ -133,9 +133,6 @@ mp9250_query(struct mpu9250 *mp, uint8_t oid)
     uint8_t bytes_to_read = fifo_bytes < sizeof(mp->data) - mp->data_count ?
                                     fifo_bytes & 0xFF :
                                     (sizeof(mp->data) - mp->data_count) & 0xFF;
-    
-    // round to nearest complete packet
-    bytes_to_read = bytes_to_read / BYTES_PER_FIFO_ENTRY * BYTES_PER_FIFO_ENTRY;
 
     // round down to nearest full packet of data
     bytes_to_read = bytes_to_read / BYTES_PER_FIFO_ENTRY * BYTES_PER_FIFO_ENTRY;
