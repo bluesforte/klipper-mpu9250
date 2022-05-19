@@ -7,7 +7,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
 #include <string.h> // memcpy
-#include <stdio.h> // usleep
+#include <unistd.h> // usleep
 #include "board/irq.h" // irq_disable
 #include "board/misc.h" // timer_read_time
 #include "basecmd.h" // oid_alloc
@@ -133,6 +133,9 @@ mp9250_query(struct mpu9250 *mp, uint8_t oid)
     uint8_t bytes_to_read = fifo_bytes < sizeof(mp->data) - mp->data_count ?
                                     fifo_bytes & 0xFF :
                                     (sizeof(mp->data) - mp->data_count) & 0xFF;
+    
+    // round to nearest complete packet
+    bytes_to_read = bytes_to_read / BYTES_PER_FIFO_ENTRY * BYTES_PER_FIFO_ENTRY;
 
     // round down to nearest full packet of data
     bytes_to_read = bytes_to_read / BYTES_PER_FIFO_ENTRY * BYTES_PER_FIFO_ENTRY;
@@ -177,7 +180,7 @@ mp9250_start(struct mpu9250 *mp, uint8_t oid)
     i2c_write(mp->i2c->i2c_config, sizeof(msg), msg);
 
     msg[0] = AR_USER_CTRL;
-    msg[1] = SET_USER_FIFO_EN; // reset FIFO buffer
+    msg[1] = SET_USER_FIFO_EN; // enable FIFO buffer
     i2c_write(mp->i2c->i2c_config, sizeof(msg), msg);
 
     msg[0] = AR_FIFO_EN;
