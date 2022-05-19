@@ -7,6 +7,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 
 #include <string.h> // memcpy
+#include <stdio.h> // usleep
 #include "board/irq.h" // irq_disable
 #include "board/misc.h" // timer_read_time
 #include "basecmd.h" // oid_alloc
