@@ -390,6 +390,9 @@ class MPU9250:
                 "(e.g. faulty wiring) or a faulty chip."
                 % (dev_id))
         # Setup chip in requested query rate
+        self.set_reg(REG_PWR_MGMT_1, SET_PWR_MGMT_1_WAKE)
+        self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_ACCEL_ON)
+        time.sleep(20. / 1000) # wait for accelerometer chip wake up
         self.set_reg(REG_SMPLRT_DIV, SAMPLE_RATE_DIVS[self.data_rate])
         self.set_reg(REG_CONFIG, SET_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG, SET_ACCEL_CONFIG)
