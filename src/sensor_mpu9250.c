@@ -93,6 +93,7 @@ mp9250_report(struct mpu9250 *mp, uint8_t oid)
 {
     sendf("mpu9250_data oid=%c sequence=%hu data=%*s"
           , oid, mp->sequence, mp->data_count, mp->data);
+    output ("reporting.");
     mp->data_count = 0;
     mp->sequence++;
 }
