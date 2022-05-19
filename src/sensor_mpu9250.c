@@ -177,11 +177,11 @@ mp9250_start(struct mpu9250 *mp, uint8_t oid)
     i2c_write(mp->i2c->i2c_config, sizeof(msg), msg);
 
     msg[0] = AR_USER_CTRL;
-    msg[1] = SET_USER_FIFO_EN; // enable FIFO buffer
+    msg[1] = SET_USER_FIFO_EN; // enable FIFO buffer access
     i2c_write(mp->i2c->i2c_config, sizeof(msg), msg);
 
     msg[0] = AR_FIFO_EN;
-    msg[1] = SET_ENABLE_FIFO; // enable accel FIFO
+    msg[1] = SET_ENABLE_FIFO; // enable accel output to FIFO
     i2c_write(mp->i2c->i2c_config, sizeof(msg), msg);
 
     msg[0] = AR_USER_CTRL;
