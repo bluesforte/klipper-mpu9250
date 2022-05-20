@@ -6,7 +6,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, time, collections, threading, multiprocessing, os
-from . import bus, motion_report
+from .. import bus, motion_report
 
 MPU9250_ADDR =      0x68
 
