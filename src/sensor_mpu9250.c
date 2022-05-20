@@ -142,7 +142,6 @@ mp9250_query(struct mpu9250 *mp, uint8_t oid)
         i2c_read(mp->i2c->i2c_config, sizeof(reg), &reg,
                 bytes_to_read, &mp->data[mp->data_count]);
         mp->data_count += bytes_to_read;
-
         // report data when buffer is full
         if (mp->data_count + BYTES_PER_FIFO_ENTRY > sizeof(mp->data)) {
             mp9250_report(mp, oid);
