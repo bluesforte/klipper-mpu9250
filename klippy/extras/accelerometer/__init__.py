@@ -1,4 +1,4 @@
-import accelerometer
+from . import accelerometer
 
 def load_config(config):
     return accelerometer.load_config(config)

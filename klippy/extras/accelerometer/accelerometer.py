@@ -9,7 +9,7 @@ accel_chip_infos = {
 class Accelerometer:
     def __init__(self, config):
         self.accel_chip_info = config.getchoice('chip', accel_chip_infos)
-        mod = importlib.import_module(self.accel_chip_info["module"], "extras.accelerometer")
+        mod = importlib.import_module(self.accel_chip_info["module"], ".")
         self.accel_class = getattr(mod, self.accel_chip_info["class"])
         self.accelerometer = self.accel_class(config)
 
