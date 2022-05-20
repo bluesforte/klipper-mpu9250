@@ -1,6 +1,8 @@
 # Support for reading acceleration data from an mpu9250 chip
 #
-# Copyright (C) 2020-2021  Kevin O'Connor <kevin@koconnor.net>
+# Copyright (C) 2022  Harry Beyel <harry3b9@gmail.com>
+#
+# Derived from adxl345.py by Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, time, collections, threading, multiprocessing, os
@@ -9,6 +11,7 @@ from . import bus, motion_report
 MPU9250_ADDR =      0x68
 
 MPU9250_DEV_ID =    0x73
+MPU6050_DEV_ID =    0x68
 
 # MPU9250 registers
 REG_DEVID =         0x75
@@ -19,17 +22,21 @@ REG_ACCEL_CONFIG =  0x1C
 REG_ACCEL_CONFIG2 = 0x1D
 REG_USER_CTRL =     0x6A
 REG_PWR_MGMT_1 =    0x6B
+REG_PWR_MGMT_2 =    0x6C
 
-SAMPLE_RATE_DIVS = {
-    125: 0x1F, 250: 0x0F, 500: 0x07, 1000: 0x03, 2000: 0x01, 4000:0x00
-}
+SAMPLE_RATE_DIVS = { 4000:0x00 }
 
-SET_CONFIG =        0x01 # FIFO mode 'stream' style 
+SET_CONFIG =        0x01 # FIFO mode 'stream' style
 SET_ACCEL_CONFIG =  0x10 # 8g full scale
-SET_ACCEL_CONFIG2 = 0x80 # 1046Hz BW, 0.503ms delay 4kHz sample rate
+SET_ACCEL_CONFIG2 = 0x08 # 1046Hz BW, 0.503ms delay 4kHz sample rate
+SET_PWR_MGMT_1_WAKE =     0x00
+SET_PWR_MGMT_1_SLEEP=     0x40
+SET_PWR_MGMT_2_ACCEL_ON = 0x07
+SET_PWR_MGMT_2_OFF  =     0x3F
 
 FREEFALL_ACCEL = 9.80665 * 1000.
-SCALE = 0.000244140625 * FREEFALL_ACCEL # 1/4096 g/LSB @8g scale * Earth gravity in mm/s**2
+# SCALE = 1/4096 g/LSB @8g scale * Earth gravity in mm/s**2
+SCALE = 0.000244140625 * FREEFALL_ACCEL
 
 FIFO_SIZE = 512
 
@@ -247,19 +254,20 @@ class MPU9250:
         if any([a not in am for a in axes_map]):
             raise config.error("Invalid mpu9250 axes_map parameter")
         self.axes_map = [am[a.strip()] for a in axes_map]
-        self.data_rate = config.getint('rate', 2000)
+        self.data_rate = config.getint('rate', 4000)
         if self.data_rate not in SAMPLE_RATE_DIVS:
             raise config.error("Invalid rate parameter: %d" % (self.data_rate,))
         # Measurement storage (accessed from background thread)
         self.lock = threading.Lock()
         self.raw_samples = []
         # Setup mcu sensor_mpu9250 bulk query code
-        self.i2c = bus.MCU_I2C_from_config(config, default_addr=MPU9250_ADDR, default_speed=400000)
+        self.i2c = bus.MCU_I2C_from_config(config,
+                                           default_addr=MPU9250_ADDR,
+                                           default_speed=400000)
         self.mcu = mcu = self.i2c.get_mcu()
         self.oid = oid = mcu.create_oid()
         self.query_mpu9250_cmd = self.query_mpu9250_end_cmd = None
         self.query_mpu9250_status_cmd = None
-        
         mcu.register_config_callback(self._build_config)
         mcu.register_response(self._handle_mpu9250_data, "mpu9250_data", oid)
         # Clock tracking
@@ -295,13 +303,6 @@ class MPU9250:
 
     def set_reg(self, reg, val, minclock=0):
         self.i2c.i2c_write([reg, val & 0xFF], minclock=minclock)
-        # stored_val = self.read_reg(reg)
-        # if stored_val != val:
-        #     raise self.printer.command_error(
-        #             "Failed to set MPU9250 register [0x%x] to 0x%x: got 0x%x. "
-        #             "This is generally indicative of connection problems "
-        #             "(e.g. faulty wiring) or a faulty mpu9250 chip." % (
-        #                 reg, val, stored_val))
 
     # Measurement collection
     def is_measuring(self):
@@ -382,13 +383,16 @@ class MPU9250:
         # In case of miswiring, testing MPU9250 device ID prevents treating
         # noise or wrong signal as a correctly initialized device
         dev_id = self.read_reg(REG_DEVID)
-        if dev_id != MPU9250_DEV_ID:
+        if dev_id != MPU9250_DEV_ID and dev_id != MPU6050_DEV_ID:
             raise self.printer.command_error(
-                "Invalid mpu9250 id (got %x vs %x).\n"
+                "Invalid mpu9250/mpu6050 id (got %x).\n"
                 "This is generally indicative of connection problems\n"
-                "(e.g. faulty wiring) or a faulty mpu9250 chip."
-                % (dev_id, MPU9250_DEV_ID))
+                "(e.g. faulty wiring) or a faulty chip."
+                % (dev_id))
         # Setup chip in requested query rate
+        self.set_reg(REG_PWR_MGMT_1, SET_PWR_MGMT_1_WAKE)
+        self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_ACCEL_ON)
+        time.sleep(20. / 1000) # wait for accelerometer chip wake up
         self.set_reg(REG_SMPLRT_DIV, SAMPLE_RATE_DIVS[self.data_rate])
         self.set_reg(REG_CONFIG, SET_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG, SET_ACCEL_CONFIG)
@@ -422,6 +426,9 @@ class MPU9250:
         with self.lock:
             self.raw_samples = []
         logging.info("MPU9250 finished '%s' measurements", self.name)
+        self.set_reg(REG_PWR_MGMT_1, SET_PWR_MGMT_1_SLEEP)
+        self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_OFF)
+
     # API interface
     def _api_update(self, eventtime):
         self._update_clock()
