@@ -1,5 +1,5 @@
 class Accelerometer:
-    def __init__(self, config) -> None:
+    def __init__(self, config):
         pass
 
 def load_config(config):
