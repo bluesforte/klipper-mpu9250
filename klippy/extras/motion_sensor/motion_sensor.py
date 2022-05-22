@@ -255,11 +255,11 @@ class MotionSensorBase (ABC):
         if not self.is_measuring():
             return
         # Halt bulk reading
-        params = self.query_mpu9250_end_cmd.send([self.oid, 0, 0])
+        params = self.query_motion_sensor_end_cmd.send([self.oid, 0, 0])
         self.query_rate = 0
         with self.lock:
             self.raw_samples = []
-        logging.info("MPU9250 finished '%s' measurements", self.name)
+        logging.info("Motion sensor finished '%s' measurements", self.name)
 
     # API interface
     def _api_update(self, eventtime):
