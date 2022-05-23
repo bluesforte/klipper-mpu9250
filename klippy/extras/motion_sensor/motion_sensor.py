@@ -13,7 +13,7 @@ sensor_chip_infos = {
 def load_config(config):
     sensor_chip_info = config.getchoice('chip', sensor_chip_infos)
     mod = importlib.import_module(name=sensor_chip_info["module"], 
-        package='.'.join(sensor_chip_infos.__module__.split('.')[:-1]))
+        package='.'.join(__name__.split('.')[:-1]))
     sensor_class = getattr(mod, sensor_chip_info["class"])
     return sensor_class(config)
 

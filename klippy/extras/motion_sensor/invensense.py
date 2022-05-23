@@ -6,7 +6,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, time, collections, threading, multiprocessing, os
 
-from klippy.extras.motion_sensor.motion_sensor import MotionSensorBase
+from motion_sensor import MotionSensorBase
 from .. import bus
 
 MPU9250_ADDR =      0x68
@@ -53,7 +53,7 @@ class MPU9250(MotionSensorBase):
     SCALE = 0.000244140625 * FREEFALL_ACCEL
 
     def __init__(self, config):
-        super(MPU9250, self).__init__(self, config)
+        super(MPU9250, self).__init__(config)
         
         self.query_rate = 0
         self.data_rate = config.getint('rate', 4000)
