@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 import importlib, time, threading, logging, multiprocessing, os, collections
 from clocksync import ClockSyncRegression
 from .. import motion_report
@@ -162,7 +162,8 @@ class MotionSensorCommandHelper:
 
 MIN_MSG_TIME = 0.100
 
-class MotionSensorBase (ABC):
+class MotionSensorBase:
+    __metaclass__ = ABCMeta
     SCALE = 1. # in mg per least significant bit
     SAMPLE_RATES = []
 
