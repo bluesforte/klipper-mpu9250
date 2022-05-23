@@ -181,10 +181,10 @@ class MPU9250(MotionSensorBase):
         self.set_reg(REG_CONFIG, SET_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG, SET_ACCEL_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG2, SET_ACCEL_CONFIG2)
-        super()._start_measurements()
+        super(MPU9250, self)._start_measurements()
         
     def _finish_measurements(self):
-        super()._finish_measurements()
+        super(MPU9250, self)._finish_measurements()
         # put device to sleep and turn off sensors
         self.set_reg(REG_PWR_MGMT_1, SET_PWR_MGMT_1_SLEEP)
         self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_OFF)
