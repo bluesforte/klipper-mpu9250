@@ -73,13 +73,13 @@ class MPU9250(MotionSensorBase):
                            % (self.oid, self.conn.get_oid()))
         self.mcu.add_config_cmd("query_mpu9250 oid=%d clock=0 rest_ticks=0"
                            % (self.oid,), on_restart=True)
-        self.query_mpu9250_cmd = self.mcu.lookup_command(
+        self.query_motion_sensor_cmd = self.mcu.lookup_command(
             "query_mpu9250 oid=%c clock=%u rest_ticks=%u", cq=cmdqueue)
-        self.query_mpu9250_end_cmd = self.mcu.lookup_query_command(
+        self.query_motion_sensor_end_cmd = self.mcu.lookup_query_command(
             "query_mpu9250 oid=%c clock=%u rest_ticks=%u",
             "mpu9250_status oid=%c clock=%u query_ticks=%u next_sequence=%hu"
             " buffered=%c fifo=%u limit_count=%hu", oid=self.oid, cq=cmdqueue)
-        self.query_mpu9250_status_cmd = self.mcu.lookup_query_command(
+        self.query_motion_sensor_status_cmd = self.mcu.lookup_query_command(
             "query_mpu9250_status oid=%c",
             "mpu9250_status oid=%c clock=%u query_ticks=%u next_sequence=%hu"
             " buffered=%c fifo=%u limit_count=%hu", oid=self.oid, cq=cmdqueue)
@@ -127,7 +127,7 @@ class MPU9250(MotionSensorBase):
     def _update_clock(self, minclock=0):
         # Query current state
         for retry in range(5):
-            params = self.query_mpu9250_status_cmd.send([self.oid],
+            params = self.query_motion_sensor_status_cmd.send([self.oid],
                                                         minclock=minclock)
             fifo = params['fifo'] & 0x1fff
             if fifo <= FIFO_SIZE:
