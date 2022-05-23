@@ -61,6 +61,7 @@ class MPU9250(MotionSensorBase):
             raise config.error("Invalid rate parameter: %d" % (self.data_rate,))
 
     def _init_conn(self, config):
+        logging.log(logging.INFO, "Setting up I2C connection for MPU9250")
         # Setup mcu sensor_mpu9250 bulk query code
         self.conn = bus.MCU_I2C_from_config(config,
                                            default_addr=MPU9250_ADDR,
