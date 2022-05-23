@@ -184,17 +184,14 @@ class MotionSensorBase:
         self.raw_samples = []
 
         # Other core variables
+        self._init_conn(config) # initialize serial connection
         self.data_rate = 0
-        self._init_conn(config)
-        if self.conn is not None:
-            self.mcu = mcu = self.conn.get_mcu()
-            self.oid = oid = mcu.create_oid()
-            self.query_motion_sensor_cmd = None
-            self.query_motion_sensor_end_cmd = None
-            self.query_motion_sensor_status_cmd = None
-            mcu.register_config_callback(self._build_config)
-            mcu.register_response(self._handle_motion_sensor_data, 
-                                    "motion_sensor_data", oid)
+        self.mcu = mcu = self.conn.get_mcu()
+        self.oid = oid = mcu.create_oid()
+        self.query_motion_sensor_cmd = None
+        self.query_motion_sensor_end_cmd = None
+        self.query_motion_sensor_status_cmd = None
+        mcu.register_config_callback(self._build_config)
         
         # Clock tracking
         self.last_sequence = self.max_query_duration = 0

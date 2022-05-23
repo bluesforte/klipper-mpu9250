@@ -59,6 +59,8 @@ class MPU9250(MotionSensorBase):
         self.data_rate = config.getint('rate', 4000)
         if self.data_rate not in SAMPLE_RATE_DIVS:
             raise config.error("Invalid rate parameter: %d" % (self.data_rate,))
+        self.mcu.register_response(self._handle_motion_sensor_data, 
+                                    "mpu9250_data", self.oid)
 
     def _init_conn(self, config):
         logging.log(logging.INFO, "Setting up I2C connection for MPU9250")
