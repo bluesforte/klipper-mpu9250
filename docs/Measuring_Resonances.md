@@ -1,11 +1,11 @@
 # Measuring Resonances
 
-Klipper has built-in support for ADXL345 accelerometer, which can be used to
-measure resonance frequencies of the printer for different axes, and auto-tune
-[input shapers](Resonance_Compensation.md) to compensate for resonances.
-Note that using ADXL345 requires some soldering and crimping. ADXL345 can be
-connected to a Raspberry Pi directly, or to an SPI interface of an MCU
-board (it needs to be reasonably fast).
+Klipper has built-in support for the ADXL345 accelerometer and MPU6050/MPU9250
+IMUs, which can be used to measure resonance frequencies of the printer for
+different axes, and auto-tune [input shapers](Resonance_Compensation.md) to 
+compensate for resonances. Note that using ADXL345 requires some soldering and 
+crimping. ADXL345 can be connected to a Raspberry Pi directly, or to an SPI
+interface of an MCU board (it needs to be reasonably fast).
 
 When sourcing ADXL345, be aware that there is a variety of different PCB
 board designs and different clones of them. Make sure that the board supports
