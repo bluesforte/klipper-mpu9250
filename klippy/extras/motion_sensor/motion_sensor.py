@@ -232,6 +232,7 @@ class MotionSensorBase:
         self.raw_samples = []
 
         # Other core variables
+        self.name = config.get_name().split()[-1]
         self._init_conn(config) # initialize serial connection
         self.data_rate = 0
         self.query_rate = 0
