@@ -25,8 +25,6 @@ REG_USER_CTRL =     0x6A
 REG_PWR_MGMT_1 =    0x6B
 REG_PWR_MGMT_2 =    0x6C
 
-SAMPLE_RATE_DIVS = { 4000:0x00 }
-
 SET_CONFIG =        0x01 # FIFO mode 'stream' style
 SET_ACCEL_CONFIG =  0x10 # 8g full scale
 SET_ACCEL_CONFIG2 = 0x08 # 1046Hz BW, 0.503ms delay 4kHz sample rate
@@ -48,12 +46,13 @@ class MPU9250 (MotionSensorBase):
     BYTES_PER_SAMPLE = 6
     SAMPLES_PER_BLOCK = 8
     FIFO_SIZE = 512 // BYTES_PER_SAMPLE
+    SAMPLE_RATES = { 4000: 0x00 }
 
     def __init__(self, config):
         super(MPU9250, self).__init__(config)
         
         self.data_rate = config.getint('rate', 4000)
-        if self.data_rate not in SAMPLE_RATE_DIVS:
+        if self.data_rate not in self.SAMPLE_RATES:
             raise config.error("Invalid rate parameter: %d" % (self.data_rate))
         self.mcu.register_response(self._handle_motion_sensor_data, 
                                     "mpu9250_data", self.oid)
@@ -140,7 +139,7 @@ class MPU9250 (MotionSensorBase):
         self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_ACCEL_ON)
         time.sleep(20. / 1000) # wait for wake up
         # Setup chip in requested query rate
-        self.set_reg(REG_SMPLRT_DIV, SAMPLE_RATE_DIVS[self.data_rate])
+        self.set_reg(REG_SMPLRT_DIV, self.SAMPLE_RATES[self.data_rate])
         self.set_reg(REG_CONFIG, SET_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG, SET_ACCEL_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG2, SET_ACCEL_CONFIG2)
