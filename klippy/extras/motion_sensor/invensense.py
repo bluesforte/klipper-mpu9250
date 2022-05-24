@@ -48,15 +48,15 @@ class MPU6050 (MotionSensorBase):
 
     def __init__(self, config):
         super(MPU6050, self).__init__(config)
-        
+
         self.data_rate = config.getint('rate', 4000)
         if self.data_rate not in self.SAMPLE_RATES:
             raise config.error("Invalid rate parameter: %d" % (self.data_rate))
-        self.mcu.register_response(self._handle_motion_sensor_data, 
+        self.mcu.register_response(self._handle_motion_sensor_data,
                                     "mpu9250_data", self.oid)
 
     def _init_conn(self, config):
-        logging.log(logging.INFO, "Setting up I2C connection for %s" % self.name)
+        logging.log(logging.INFO, "Setting up I2C connection for %s"%self.name)
         # Setup mcu sensor_mpu9250 bulk query code
         self.conn = bus.MCU_I2C_from_config(config,
                                            default_addr=self.I2C_ADDR_DEFAULT,

@@ -1523,7 +1523,7 @@ i2c_bus:
 #   Optionally specify a different mcu or speed to use for the I2C connection.
 #   Also, see "Common I2C Settings" section for a description of other options.
 #axes_map: x, y, z
-#   The sensor's accelerometer axis for each of the printer's X, Y, and 
+#   The sensor's accelerometer axis for each of the printer's X, Y, and
 #   Z axes. This may be useful if the accelerometer is mounted in an
 #   orientation that does not match the printer orientation. For
 #   example, one could set this to "y, x, z" to swap the X and Y axes.

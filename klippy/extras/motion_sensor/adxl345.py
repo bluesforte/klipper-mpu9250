@@ -38,9 +38,9 @@ class ADXL345 (MotionSensorBase):
         self.data_rate = config.getint('rate', 3200)
         if self.data_rate not in self.QUERY_RATES:
             raise config.error("Invalid rate parameter: %d" % (self.data_rate))
-        self.mcu.register_response(self._handle_motion_sensor_data, 
+        self.mcu.register_response(self._handle_motion_sensor_data,
                                     "adxl345_data", self.oid)
-    
+
     def _init_conn(self, config):
         logging.log(logging.INFO, "Setting up SPI connection for ADXL345")
         # Setup mcu sensor_mpu9250 bulk query code
@@ -58,12 +58,12 @@ class ADXL345 (MotionSensorBase):
             "query_adxl345_status oid=%c",
             "adxl345_status oid=%c clock=%u query_ticks=%u next_sequence=%hu"
             " buffered=%c fifo=%c limit_count=%hu", oid=self.oid, cq=cmdqueue)
-    
+
     def read_reg(self, reg):
         params = self.conn.spi_transfer([reg | REG_MOD_READ, 0x00])
         response = bytearray(params['response'])
         return response[1]
-    
+
     def set_reg(self, reg, val, minclock=0):
         self.conn.spi_send([reg, val & 0xFF], minclock=minclock)
         stored_val = self.read_reg(reg)

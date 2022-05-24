@@ -156,7 +156,7 @@ class DataLogger:
             if cfgname == "motion_sensor" or cfgname.startswith(
                                                 "motion_sensor "):
                 aname = cfgname.split()[-1]
-                self.send_subscribe("motion_sensor:" + aname, 
+                self.send_subscribe("motion_sensor:" + aname,
                                     "motion_sensor/motion_sensor",
                                     {"sensor": aname})
             if cfgname.startswith("angle "):

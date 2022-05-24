@@ -23,7 +23,7 @@ FREEFALL_ACCEL = 9.80665 * 1000. # mm/s**2
 
 def load_config(config):
     sensor_chip_info = config.getchoice('chip', sensor_chip_infos)
-    mod = importlib.import_module(name=sensor_chip_info["module"], 
+    mod = importlib.import_module(name=sensor_chip_info["module"],
         package='.'.join(__name__.split('.')[:-1]))
     sensor_class = getattr(mod, sensor_chip_info["class"])
     return sensor_class(config)
@@ -160,12 +160,14 @@ class MotionSensorCommandHelper:
         _, accel_x, accel_y, accel_z = values[-1]
         gcmd.respond_info("motion_sensor values (x, y, z): %.6f, %.6f, %.6f"
                           % (accel_x, accel_y, accel_z))
-    cmd_ACCELEROMETER_DEBUG_READ_help = "Query motion_sensor register (for debugging)"
+    cmd_ACCELEROMETER_DEBUG_READ_help = "Query motion_sensor register " \
+        "(for debugging)"
     def cmd_ACCELEROMETER_DEBUG_READ(self, gcmd):
         reg = gcmd.get("REG", minval=0, maxval=255, parser=lambda x: int(x, 0))
         val = self.chip.read_reg(reg)
         gcmd.respond_info("motion_sensor REG[0x%x] = 0x%x" % (reg, val))
-    cmd_ACCELEROMETER_DEBUG_WRITE_help = "Set motion_sensor register (for debugging)"
+    cmd_ACCELEROMETER_DEBUG_WRITE_help = "Set motion_sensor register " \
+        "(for debugging)"
     def cmd_ACCELEROMETER_DEBUG_WRITE(self, gcmd):
         reg = gcmd.get("REG", minval=0, maxval=255, parser=lambda x: int(x, 0))
         val = gcmd.get("VAL", minval=0, maxval=255, parser=lambda x: int(x, 0))
@@ -180,11 +182,11 @@ class MotionSensorBase:
         pass
 
     @property
-    @abstractmethod     
+    @abstractmethod
     def SAMPLE_RATES(self):
         # Dict of supported rates in Hz, mapped to any needed config data
         return {}
-    
+
     @property
     @abstractmethod
     def SAMPLES_PER_BLOCK(self):
@@ -218,10 +220,10 @@ class MotionSensorBase:
     def __init__(self, config):
         self.printer = config.get_printer()
         MotionSensorCommandHelper(config, self)
-        
+
         # Set up axes mappings
-        am = {'x': (0, self.SCALE), 'y': (1, self.SCALE), 'z': (2, self.SCALE),
-              '-x': (0, -self.SCALE), '-y': (1, -self.SCALE), '-z': (2, -self.SCALE)}
+        am = {'x':(0, self.SCALE),  'y':(1, self.SCALE),  'z':(2, self.SCALE),
+             '-x':(0, -self.SCALE),'-y':(1, -self.SCALE),'-z':(2, -self.SCALE)}
         axes_map = config.getlist('axes_map', ('x','y','z'), count=3)
         if any([a not in am for a in axes_map]):
             raise config.error("Invalid motion_sensor axes_map parameter")
@@ -242,7 +244,7 @@ class MotionSensorBase:
         self.query_motion_sensor_end_cmd = None
         self.query_motion_sensor_status_cmd = None
         mcu.register_config_callback(self._build_config)
-        
+
         # Clock tracking
         self.last_sequence = self.max_query_duration = 0
         self.last_limit_count = self.last_error_count = 0
@@ -259,7 +261,7 @@ class MotionSensorBase:
     @abstractmethod
     def _init_conn(self, config):
         pass
-    
+
     @abstractmethod
     def _build_config(self):
         pass
