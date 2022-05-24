@@ -6,7 +6,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, time, collections, threading, multiprocessing, os
 
-from motion_sensor import MotionSensorBase
+from motion_sensor import MotionSensorBase, FREEFALL_ACCEL
 from .. import bus
 
 MPU9250_ADDR =      0x68
@@ -35,30 +35,26 @@ SET_PWR_MGMT_1_SLEEP=     0x40
 SET_PWR_MGMT_2_ACCEL_ON = 0x07
 SET_PWR_MGMT_2_OFF  =     0x3F
 
-FIFO_SIZE = 512
-
 # Helper method for getting the two's complement value of an unsigned int
 def twos_complement(val, nbits):
     if (val & (1 << (nbits - 1))) != 0:
         val = val - (1 << nbits)
     return val
 
-BYTES_PER_SAMPLE = 6
-SAMPLES_PER_BLOCK = 8
-
 # Printer class that controls MPU9250 chip
-class MPU9250(MotionSensorBase):
-    FREEFALL_ACCEL = 9.80665 * 1000. # mm/s**2
+class MPU9250 (MotionSensorBase):
     # SCALE = 1/4096 g/LSB @8g scale * Earth gravity in mm/s**2
     SCALE = 0.000244140625 * FREEFALL_ACCEL
+    BYTES_PER_SAMPLE = 6
+    SAMPLES_PER_BLOCK = 8
+    FIFO_SIZE = 512 // BYTES_PER_SAMPLE
 
     def __init__(self, config):
         super(MPU9250, self).__init__(config)
         
-        self.query_rate = 0
         self.data_rate = config.getint('rate', 4000)
         if self.data_rate not in SAMPLE_RATE_DIVS:
-            raise config.error("Invalid rate parameter: %d" % (self.data_rate,))
+            raise config.error("Invalid rate parameter: %d" % (self.data_rate))
         self.mcu.register_response(self._handle_motion_sensor_data, 
                                     "mpu9250_data", self.oid)
 
@@ -100,16 +96,16 @@ class MPU9250(MotionSensorBase):
         time_base, chip_base, inv_freq = self.clock_sync.get_time_translation()
         # Process every message in raw_samples
         count = seq = 0
-        samples = [None] * (len(raw_samples) * SAMPLES_PER_BLOCK)
+        samples = [None] * (len(raw_samples) * self.SAMPLES_PER_BLOCK)
         for params in raw_samples:
             seq_diff = (last_sequence - params['sequence']) & 0xffff
             seq_diff -= (seq_diff & 0x8000) << 1
             seq = last_sequence - seq_diff
             d = bytearray(params['data'])
-            msg_cdiff = seq * SAMPLES_PER_BLOCK - chip_base
+            msg_cdiff = seq * self.SAMPLES_PER_BLOCK - chip_base
 
-            for i in range(len(d) // BYTES_PER_SAMPLE):
-                d_xyz = d[i*BYTES_PER_SAMPLE:(i+1)*BYTES_PER_SAMPLE]
+            for i in range(len(d) // self.BYTES_PER_SAMPLE):
+                d_xyz = d[i*self.BYTES_PER_SAMPLE:(i+1)*self.BYTES_PER_SAMPLE]
                 xhigh, xlow, yhigh, ylow, zhigh, zlow = d_xyz
                 rx = twos_complement(xhigh << 8 | xlow, 16)
                 ry = twos_complement(yhigh << 8 | ylow, 16)
@@ -122,44 +118,9 @@ class MPU9250(MotionSensorBase):
                 ptime = round(time_base + (msg_cdiff + i) * inv_freq, 6)
                 samples[count] = (ptime, x, y, z)
                 count += 1
-        self.clock_sync.set_last_chip_clock(seq * SAMPLES_PER_BLOCK + i)
+        self.clock_sync.set_last_chip_clock(seq * self.SAMPLES_PER_BLOCK + i)
         del samples[count:]
         return samples
-
-    def _update_clock(self, minclock=0):
-        # Query current state
-        for retry in range(5):
-            params = self.query_motion_sensor_status_cmd.send([self.oid],
-                                                        minclock=minclock)
-            fifo = params['fifo'] & 0x1fff
-            if fifo <= FIFO_SIZE:
-                break
-        else:
-            raise self.printer.command_error("Unable to query mpu9250 fifo")
-        mcu_clock = self.mcu.clock32_to_clock64(params['clock'])
-        sequence = (self.last_sequence & ~0xffff) | params['next_sequence']
-        if sequence < self.last_sequence:
-            sequence += 0x10000
-        self.last_sequence = sequence
-        buffered = params['buffered']
-        limit_count = (self.last_limit_count & ~0xffff) | params['limit_count']
-        if limit_count < self.last_limit_count:
-            limit_count += 0x10000
-        self.last_limit_count = limit_count
-        duration = params['query_ticks']
-        if duration > self.max_query_duration:
-            # Skip measurement as a high query time could skew clock tracking
-            self.max_query_duration = max(2 * self.max_query_duration,
-                                          self.mcu.seconds_to_clock(.000005))
-            return
-        self.max_query_duration = 2 * duration
-        msg_count = (sequence * SAMPLES_PER_BLOCK
-                     + buffered // BYTES_PER_SAMPLE + fifo)
-        # The "chip clock" is the message counter plus .5 for average
-        # inaccuracy of query responses and plus .5 for assumed offset
-        # of mpu9250 hw processing time.
-        chip_clock = msg_count + 1
-        self.clock_sync.update(mcu_clock + duration // 2, chip_clock)
 
     def _start_measurements(self):
         if self.is_measuring():

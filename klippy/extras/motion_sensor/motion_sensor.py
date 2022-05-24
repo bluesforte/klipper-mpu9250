@@ -1,6 +1,14 @@
-from abc import ABCMeta, abstractmethod
+# Support for reading and analyzing motion data from an external chip
+#
+# Copyright (C) 2022 Harry Beyel <harry3b9@gmail.com>
+# Copyright (C) 2020-2021  Kevin O'Connor <kevin@koconnor.net>
+#
+# This file may be distributed under the terms of the GNU GPLv3 license.
+
+from abc import ABCMeta, abstractmethod, abstractproperty
 import importlib, time, threading, logging, multiprocessing, os, collections
 from clocksync import ClockSyncRegression
+from klippy.extras.motion_sensor.invensense import BYTES_PER_SAMPLE, SAMPLES_PER_BLOCK
 from .. import motion_report
 
 # info used to determine which class to load in load_config
@@ -9,6 +17,10 @@ sensor_chip_infos = {
         "mpu6050": { "module" : ".invensense",  "class" : "MPU6050" },
         "mpu9250": { "module" : ".invensense",  "class" : "MPU9250" },
     }
+
+# General constants
+MIN_MSG_TIME = 0.100
+FREEFALL_ACCEL = 9.80665 * 1000. # mm/s**2
 
 def load_config(config):
     sensor_chip_info = config.getchoice('chip', sensor_chip_infos)
@@ -160,12 +172,37 @@ class MotionSensorCommandHelper:
         val = gcmd.get("VAL", minval=0, maxval=255, parser=lambda x: int(x, 0))
         self.chip.set_reg(reg, val)
 
-MIN_MSG_TIME = 0.100
-
 class MotionSensorBase:
     __metaclass__ = ABCMeta
-    SCALE = 1. # in mg per least significant bit
-    SAMPLE_RATES = []
+    @property
+    @abstractmethod
+    def SCALE(self):
+        # Scale of the device in mg per least significant bit
+        pass
+
+    @property
+    @abstractmethod     
+    def SAMPLE_RATES(self):
+        # Dict of supported rates in Hz, mapped to any needed config data
+        return {}
+    
+    @property
+    @abstractmethod
+    def SAMPLES_PER_BLOCK(self):
+        # Number of samples returned while querying device
+        pass
+
+    @property
+    @abstractmethod
+    def BYTES_PER_SAMPLE(self):
+        # Number of bytes returned by the device for each sample
+        pass
+
+    @property
+    @abstractmethod
+    def FIFO_SIZE(self):
+        # FIFO size of the device in number of samples
+        pass
 
     def __init__(self, config):
         self.printer = config.get_printer()
@@ -186,6 +223,7 @@ class MotionSensorBase:
         # Other core variables
         self._init_conn(config) # initialize serial connection
         self.data_rate = 0
+        self.query_rate = 0
         self.mcu = mcu = self.conn.get_mcu()
         self.oid = oid = mcu.create_oid()
         self.query_motion_sensor_cmd = None
@@ -214,6 +252,43 @@ class MotionSensorBase:
     def _build_config(self):
         pass
 
+    @abstractmethod
+    def _update_clock(self, minclock=0):
+        # Query current state
+        for retry in range(5):
+            params = self.query_motion_sensor_status_cmd.send([self.oid],
+                                                        minclock=minclock)
+            fifo = params['fifo'] & 0x7f
+            if fifo <= self.FIFO_SIZE:
+                break
+        else:
+            raise self.printer.command_error("Unable to query '%s' fifo" %
+                                                self.name)
+        mcu_clock = self.mcu.clock32_to_clock64(params['clock'])
+        sequence = (self.last_sequence & ~0xffff) | params['next_sequence']
+        if sequence < self.last_sequence:
+            sequence += 0x10000
+        self.last_sequence = sequence
+        buffered = params['buffered']
+        limit_count = (self.last_limit_count & ~0xffff) | params['limit_count']
+        if limit_count < self.last_limit_count:
+            limit_count += 0x10000
+        self.last_limit_count = limit_count
+        duration = params['query_ticks']
+        if duration > self.max_query_duration:
+            # Skip measurement as a high query time could skew clock tracking
+            self.max_query_duration = max(2 * self.max_query_duration,
+                                          self.mcu.seconds_to_clock(.000005))
+            return
+        self.max_query_duration = 2 * duration
+        msg_count = (sequence * self.SAMPLES_PER_BLOCK
+                     + buffered // self.BYTES_PER_SAMPLE + fifo)
+        # The "chip clock" is the message counter plus .5 for average
+        # inaccuracy of query responses and plus .5 for assumed offset
+        # of hw processing time.
+        chip_clock = msg_count + 1
+        self.clock_sync.update(mcu_clock + duration // 2, chip_clock)
+
     # Measurement collection
     def is_measuring(self):
         return self.query_rate > 0
@@ -221,10 +296,6 @@ class MotionSensorBase:
     def _handle_motion_sensor_data(self, params):
         with self.lock:
             self.raw_samples.append(params)
-
-    @abstractmethod
-    def _update_clock(self, minclock=0):
-        pass
 
     def _start_measurements(self):
         if self.is_measuring():
