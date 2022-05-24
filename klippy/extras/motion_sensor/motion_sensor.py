@@ -263,7 +263,6 @@ class MotionSensorBase:
     def _build_config(self):
         pass
 
-    @abstractmethod
     def _update_clock(self, minclock=0):
         # Query current state
         for retry in range(5):
