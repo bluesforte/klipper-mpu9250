@@ -204,6 +204,18 @@ class MotionSensorBase:
         # FIFO size of the device in number of samples
         pass
 
+    def _wake_sensor(self):
+        # Wakes up sensor prior to usage
+        pass
+
+    def _sleep_sensor(self):
+        # Puts sensor to sleep when not in use
+        pass
+
+    def _configure_sensor(self):
+        # Performs any necessary configuration prior to using device
+        pass
+
     def __init__(self, config):
         self.printer = config.get_printer()
         MotionSensorCommandHelper(config, self)
@@ -309,6 +321,8 @@ class MotionSensorBase:
         reqclock = self.mcu.print_time_to_clock(print_time)
         rest_ticks = self.mcu.seconds_to_clock(1. / self.data_rate)
         self.query_rate = self.data_rate
+        self._wake_sensor()
+        self._configure_sensor()
         self.query_motion_sensor_cmd.send([self.oid, reqclock, rest_ticks],
                                     reqclock=reqclock)
         logging.info("Motion sensor starting '%s' measurements", self.name)
@@ -328,6 +342,7 @@ class MotionSensorBase:
         self.query_rate = 0
         with self.lock:
             self.raw_samples = []
+        self._sleep_sensor()
         logging.info("Motion sensor finished '%s' measurements", self.name)
 
     # API interface

@@ -1,7 +1,6 @@
-# Support for reading acceleration data from an mpu9250 chip
+# Support for reading acceleration data from invensense chips
 #
 # Copyright (C) 2022  Harry Beyel <harry3b9@gmail.com>
-# Copyright (C) 2020-2021 Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging, time, collections, threading, multiprocessing, os
@@ -9,14 +8,7 @@ import logging, time, collections, threading, multiprocessing, os
 from motion_sensor import MotionSensorBase, FREEFALL_ACCEL
 from .. import bus
 
-MPU9250_ADDR =      0x68
-
-MPU9250_DEV_ID =    0x73
-MPU6050_DEV_ID =    0x68
-
-# MPU9250 registers
-REG_DEVID =         0x75
-REG_FIFO_EN =       0x23
+# Register mapping for MPU-xxxx devices
 REG_SMPLRT_DIV =    0x19
 REG_CONFIG =        0x1A
 REG_ACCEL_CONFIG =  0x1C
@@ -24,7 +16,9 @@ REG_ACCEL_CONFIG2 = 0x1D
 REG_USER_CTRL =     0x6A
 REG_PWR_MGMT_1 =    0x6B
 REG_PWR_MGMT_2 =    0x6C
+REG_DEVID =         0x75
 
+# Register settings for MPU-xxxx devices
 SET_CONFIG =        0x01 # FIFO mode 'stream' style
 SET_ACCEL_CONFIG =  0x10 # 8g full scale
 SET_ACCEL_CONFIG2 = 0x08 # 1046Hz BW, 0.503ms delay 4kHz sample rate
@@ -39,17 +33,21 @@ def twos_complement(val, nbits):
         val = val - (1 << nbits)
     return val
 
-# Printer class that controls MPU9250 chip
-class MPU9250 (MotionSensorBase):
-    # SCALE = 1/4096 g/LSB @8g scale * Earth gravity in mm/s**2
+# Printer class that controls MPU6050 chip
+class MPU6050 (MotionSensorBase):
+    # SCALE = (1/4096 g/LSB @8g scale) * Earth gravity in mm/s**2
     SCALE = 0.000244140625 * FREEFALL_ACCEL
+    SAMPLE_RATES = { 4000: 0x00 }
+    I2C_ADDR_DEFAULT = 0x68
+
     BYTES_PER_SAMPLE = 6
     SAMPLES_PER_BLOCK = 8
     FIFO_SIZE = 512 // BYTES_PER_SAMPLE
-    SAMPLE_RATES = { 4000: 0x00 }
+
+    DEVICE_IDS = [ 0x68 ]
 
     def __init__(self, config):
-        super(MPU9250, self).__init__(config)
+        super(MPU6050, self).__init__(config)
         
         self.data_rate = config.getint('rate', 4000)
         if self.data_rate not in self.SAMPLE_RATES:
@@ -58,10 +56,10 @@ class MPU9250 (MotionSensorBase):
                                     "mpu9250_data", self.oid)
 
     def _init_conn(self, config):
-        logging.log(logging.INFO, "Setting up I2C connection for MPU9250")
+        logging.log(logging.INFO, "Setting up I2C connection for %s" % self.name)
         # Setup mcu sensor_mpu9250 bulk query code
         self.conn = bus.MCU_I2C_from_config(config,
-                                           default_addr=MPU9250_ADDR,
+                                           default_addr=self.I2C_ADDR_DEFAULT,
                                            default_speed=400000)
 
     def _build_config(self):
@@ -124,29 +122,36 @@ class MPU9250 (MotionSensorBase):
     def _start_measurements(self):
         if self.is_measuring():
             return
-
-        # In case of miswiring, testing MPU9250 device ID prevents treating
-        # noise or wrong signal as a correctly initialized device
+        # Sanity check the connection to device before performing any ops
         dev_id = self.read_reg(REG_DEVID)
-        if dev_id != MPU9250_DEV_ID and dev_id != MPU6050_DEV_ID:
+        if dev_id not in self.DEVICE_IDS:
             raise self.printer.command_error(
-                "Invalid mpu9250/mpu6050 id (got %x).\n"
-                "This is generally indicative of connection problems\n"
-                "(e.g. faulty wiring) or a faulty chip."
+                """Invalid device id (got %x).\n
+                This is generally indicative of connection problems
+                 (e.g. wrong chip in config, faulty wiring, or faulty chip.)"""
                 % (dev_id))
+        super(MPU9250, self)._start_measurements()
+
+    def _wake_sensor(self):
         # Wake up chip
         self.set_reg(REG_PWR_MGMT_1, SET_PWR_MGMT_1_WAKE)
         self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_ACCEL_ON)
         time.sleep(20. / 1000) # wait for wake up
+
+    def _sleep_sensor(self):
+        # turn off sensors and put device to sleep
+        self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_OFF)
+        self.set_reg(REG_PWR_MGMT_1, SET_PWR_MGMT_1_SLEEP)
+
+    def _configure_sensor(self, mode=None):
         # Setup chip in requested query rate
         self.set_reg(REG_SMPLRT_DIV, self.SAMPLE_RATES[self.data_rate])
         self.set_reg(REG_CONFIG, SET_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG, SET_ACCEL_CONFIG)
         self.set_reg(REG_ACCEL_CONFIG2, SET_ACCEL_CONFIG2)
-        super(MPU9250, self)._start_measurements()
-        
-    def _finish_measurements(self):
-        super(MPU9250, self)._finish_measurements()
-        # put device to sleep and turn off sensors
-        self.set_reg(REG_PWR_MGMT_1, SET_PWR_MGMT_1_SLEEP)
-        self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_OFF)
+
+class MPU9250 (MPU6050):
+    DEVICE_IDS = [ 0x73 ]
+
+    def __init__(self, config):
+        super(MPU9250, self).__init__(config)

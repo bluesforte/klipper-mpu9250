@@ -3,10 +3,9 @@
 # Copyright (C) 2020-2021  Kevin O'Connor <kevin@koconnor.net>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import logging, time, collections, threading, multiprocessing, os
-from . import bus, motion_report
+import logging
+from . import bus
 from motion_sensor import MotionSensorBase, FREEFALL_ACCEL
-from clocksync import ClockSyncRegression
 
 # ADXL345 registers
 REG_DEVID = 0x00
@@ -82,7 +81,7 @@ class ADXL345 (MotionSensorBase):
         time_base, chip_base, inv_freq = self.clock_sync.get_time_translation()
         # Process every message in raw_samples
         count = seq = 0
-        samples = [None] * (len(raw_samples) * SAMPLES_PER_BLOCK)
+        samples = [None] * (len(raw_samples) * self.SAMPLES_PER_BLOCK)
         for params in raw_samples:
             seq_diff = (last_sequence - params['sequence']) & 0xffff
             seq_diff -= (seq_diff & 0x8000) << 1
@@ -157,10 +156,12 @@ class ADXL345 (MotionSensorBase):
                 "This is generally indicative of connection problems\n"
                 "(e.g. faulty wiring) or a faulty adxl345 chip."
                 % (dev_id, ADXL345_DEV_ID))
+        super(ADXL345, self)._start_measurements()
+
+    def _configure_sensor(self):
         # Setup chip with requested query rate
         self.set_reg(REG_POWER_CTL, 0x00)
         self.set_reg(REG_DATA_FORMAT, 0x0B)
         self.set_reg(REG_FIFO_CTL, 0x00)
         self.set_reg(REG_BW_RATE, self.QUERY_RATES[self.data_rate])
         self.set_reg(REG_FIFO_CTL, SET_FIFO_CTL)
-        super(ADXL345, self)._start_measurements()
