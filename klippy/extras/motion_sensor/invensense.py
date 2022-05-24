@@ -130,7 +130,7 @@ class MPU6050 (MotionSensorBase):
                 This is generally indicative of connection problems
                  (e.g. wrong chip in config, faulty wiring, or faulty chip.)"""
                 % (dev_id))
-        super(MPU9250, self)._start_measurements()
+        super(MPU6050, self)._start_measurements()
 
     def _wake_sensor(self):
         # Wake up chip
