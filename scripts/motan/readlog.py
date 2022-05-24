@@ -335,7 +335,7 @@ class HandleMotionSensor:
     SubscriptionIdParts = 2
     ParametersMin = ParametersMax = 2
     DataSets = [
-        ('motion_sensor(<name>,<axis>)', 
+        ('motion_sensor(<name>,<axis>)',
          'Accelerometer for given axis (x, y, or z)'),
     ]
     def __init__(self, lmanager, name, name_parts):
