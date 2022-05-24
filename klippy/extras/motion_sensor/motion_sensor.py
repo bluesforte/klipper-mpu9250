@@ -5,10 +5,9 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 import importlib, time, threading, logging, multiprocessing, os, collections
 from clocksync import ClockSyncRegression
-from klippy.extras.motion_sensor.invensense import BYTES_PER_SAMPLE, SAMPLES_PER_BLOCK
 from .. import motion_report
 
 # info used to determine which class to load in load_config

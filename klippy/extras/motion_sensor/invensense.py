@@ -3,7 +3,7 @@
 # Copyright (C) 2022  Harry Beyel <harry3b9@gmail.com>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-import logging, time, collections, threading, multiprocessing, os
+import logging, time
 
 from motion_sensor import MotionSensorBase, FREEFALL_ACCEL
 from .. import bus
