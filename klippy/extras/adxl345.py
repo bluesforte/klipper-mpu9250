@@ -1,6 +1,9 @@
 import logging
 import motion_sensor.adxl345
 
+def load_config(config):
+    return ADXL345(config)
+
 class ADXL345 (motion_sensor.adxl345.ADXL345):
     def __init__(self, config):
         super(motion_sensor.adxl345.ADXL345, self).__init__(config)
