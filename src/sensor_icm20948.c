@@ -55,7 +55,7 @@ static struct task_wake icm20948_wake;
 
 // Reads the fifo byte count from the device.
 uint16_t
-get_fifo_status (struct icm20948 *mp)
+get_fifo_status_icm (struct icm20948 *mp)
 {
     uint8_t regs[] = {AR_FIFO_COUNT_H};
     uint8_t msg[2];
@@ -120,7 +120,7 @@ static void
 mp9250_query(struct icm20948 *mp, uint8_t oid)
 {
     // Check fifo status
-    uint16_t fifo_bytes = get_fifo_status(mp);
+    uint16_t fifo_bytes = get_fifo_status_icm(mp);
     if (fifo_bytes >= AR_FIFO_SIZE - BYTES_PER_FIFO_ENTRY)
         mp->limit_count++;
 
@@ -207,10 +207,10 @@ mp9250_stop(struct icm20948 *mp, uint8_t oid)
     uint32_t end2_time = timer_read_time();
 
     // Drain any measurements still in fifo
-    uint16_t fifo_bytes = get_fifo_status(mp);
+    uint16_t fifo_bytes = get_fifo_status_icm(mp);
     while (fifo_bytes >= BYTES_PER_FIFO_ENTRY) {
         mp9250_query(mp, oid);
-        fifo_bytes = get_fifo_status(mp);
+        fifo_bytes = get_fifo_status_icm(mp);
     }
 
     // Report final data
