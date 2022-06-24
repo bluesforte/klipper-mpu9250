@@ -86,7 +86,7 @@ DECL_COMMAND(command_config_icm20948, "config_icm20948 oid=%c i2c_oid=%c");
 
 // Report local measurement buffer
 static void
-mp9250_report(struct icm20948 *mp, uint8_t oid)
+icm20948_report(struct icm20948 *mp, uint8_t oid)
 {
     sendf("icm20948_data oid=%c sequence=%hu data=%*s"
           , oid, mp->sequence, mp->data_count, mp->data);
@@ -96,7 +96,7 @@ mp9250_report(struct icm20948 *mp, uint8_t oid)
 
 // Report buffer and fifo status
 static void
-mp9250_status(struct icm20948 *mp, uint_fast8_t oid
+icm20948_status(struct icm20948 *mp, uint_fast8_t oid
             , uint32_t time1, uint32_t time2, uint16_t fifo)
 {
     sendf("icm20948_status oid=%c clock=%u query_ticks=%u next_sequence=%hu"
@@ -107,7 +107,7 @@ mp9250_status(struct icm20948 *mp, uint_fast8_t oid
 
 // Helper code to reschedule the icm20948_event() timer
 static void
-mp9250_reschedule_timer(struct icm20948 *mp)
+icm20948_reschedule_timer(struct icm20948 *mp)
 {
     irq_disable();
     mp->timer.waketime = timer_read_time() + mp->rest_ticks;
@@ -117,7 +117,7 @@ mp9250_reschedule_timer(struct icm20948 *mp)
 
 // Query accelerometer data
 static void
-mp9250_query(struct icm20948 *mp, uint8_t oid)
+icm20948_query(struct icm20948 *mp, uint8_t oid)
 {
     // Check fifo status
     uint16_t fifo_bytes = get_fifo_status_icm(mp);
@@ -142,7 +142,7 @@ mp9250_query(struct icm20948 *mp, uint8_t oid)
 
         // report data when buffer is full
         if (mp->data_count + BYTES_PER_FIFO_ENTRY > sizeof(mp->data)) {
-            mp9250_report(mp, oid);
+            icm20948_report(mp, oid);
         }
     }
 
@@ -157,13 +157,13 @@ mp9250_query(struct icm20948 *mp, uint8_t oid)
         // No more fifo data, but actively running. Sleep until next check
         sched_del_timer(&mp->timer);
         mp->flags &= ~AX_PENDING;
-        mp9250_reschedule_timer(mp);
+        icm20948_reschedule_timer(mp);
     }
 }
 
 // Startup measurements
 static void
-mp9250_start(struct icm20948 *mp, uint8_t oid)
+icm20948_start(struct icm20948 *mp, uint8_t oid)
 {
     sched_del_timer(&mp->timer);
     mp->flags = AX_RUNNING;
@@ -189,12 +189,12 @@ mp9250_start(struct icm20948 *mp, uint8_t oid)
     msg[1] = SET_FIFO_RST_NORMAL; // un-reset FIFO buffer
     i2c_write(mp->i2c->i2c_config, sizeof(msg), msg);
 
-    mp9250_reschedule_timer(mp);
+    icm20948_reschedule_timer(mp);
 }
 
 // End measurements
 static void
-mp9250_stop(struct icm20948 *mp, uint8_t oid)
+icm20948_stop(struct icm20948 *mp, uint8_t oid)
 {
     // Disable measurements
     sched_del_timer(&mp->timer);
@@ -209,14 +209,14 @@ mp9250_stop(struct icm20948 *mp, uint8_t oid)
     // Drain any measurements still in fifo
     uint16_t fifo_bytes = get_fifo_status_icm(mp);
     while (fifo_bytes >= BYTES_PER_FIFO_ENTRY) {
-        mp9250_query(mp, oid);
+        icm20948_query(mp, oid);
         fifo_bytes = get_fifo_status_icm(mp);
     }
 
     // Report final data
     if (mp->data_count > 0)
-        mp9250_report(mp, oid);
-    mp9250_status(mp, oid, end1_time, end2_time,
+        icm20948_report(mp, oid);
+    icm20948_status(mp, oid, end1_time, end2_time,
                     fifo_bytes / BYTES_PER_FIFO_ENTRY);
 }
 
@@ -227,7 +227,7 @@ command_query_icm20948(uint32_t *args)
 
     if (!args[2]) {
         // End measurements
-        mp9250_stop(mp, args[0]);
+        icm20948_stop(mp, args[0]);
         return;
     }
     // Start new measurements query
@@ -253,7 +253,7 @@ command_query_icm20948_status(uint32_t *args)
     uint32_t time2 = timer_read_time();
     msg[0] = 0x1F & msg[0]; // discard 3 MSB
     uint16_t fifo_bytes = (((uint16_t)msg[0]) << 8) | msg[1];
-    mp9250_status(mp, args[0], time1, time2, fifo_bytes / BYTES_PER_FIFO_ENTRY);
+    icm20948_status(mp, args[0], time1, time2, fifo_bytes / BYTES_PER_FIFO_ENTRY);
 }
 DECL_COMMAND(command_query_icm20948_status, "query_icm20948_status oid=%c");
 
@@ -270,10 +270,10 @@ icm20948_task(void)
             continue;
         }
         if (flags & AX_HAVE_START) {
-            mp9250_start(mp, oid);
+            icm20948_start(mp, oid);
         }
         else {
-            mp9250_query(mp, oid);
+            icm20948_query(mp, oid);
         }
     }
 }
